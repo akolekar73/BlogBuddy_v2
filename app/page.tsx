@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { CostMonitor } from '@/components/cost-monitor';
 import { ArticleList } from '@/components/article-list';
 import { ResearchPanel } from '@/components/research-panel';
-import { Article, UsageStats } from '@/lib/types';
+import { RefinementModal } from '@/components/refinement/RefinementModal';
+import { Article, UsageStats, RefinementData } from '@/lib/types';
 import { getAutonomyLabel } from '@/lib/utils';
 
 interface ArticleWithCount extends Article {
@@ -25,12 +26,17 @@ export default function Home() {
   const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
+  // Refinement state
+  const [showRefinement, setShowRefinement] = useState(false);
+  const [pendingTopic, setPendingTopic] = useState('');
+
   // Active research session
   const [activeSession, setActiveSession] = useState<{
     articleId: string;
     title: string;
     topic: string;
     autonomyLevel: number;
+    refinementData?: RefinementData;
   } | null>(null);
 
   // Load articles and usage stats on mount
@@ -65,15 +71,25 @@ export default function Home() {
     }
   };
 
-  const handleStartResearch = async () => {
+  const handleOpenRefinement = () => {
     if (!topic.trim()) return;
+    setPendingTopic(topic.trim());
+    setShowRefinement(true);
+  };
 
+  const handleRefinementComplete = async (refinementData: RefinementData) => {
+    setShowRefinement(false);
     setIsStarting(true);
+
     try {
       const res = await fetch('/api/research/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, autonomyLevel }),
+        body: JSON.stringify({
+          topic: refinementData.thesis || pendingTopic,
+          autonomyLevel: refinementData.recommended_autonomy || autonomyLevel,
+          refinementData,
+        }),
       });
 
       if (!res.ok) {
@@ -85,11 +101,46 @@ export default function Home() {
       setActiveSession({
         articleId: data.articleId,
         title: data.title,
-        topic,
+        topic: refinementData.thesis || pendingTopic,
+        autonomyLevel: refinementData.recommended_autonomy || autonomyLevel,
+        refinementData,
+      });
+
+      setTopic('');
+      setPendingTopic('');
+    } catch (err) {
+      console.error('Failed to start research:', err);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleRefinementSkip = async () => {
+    setShowRefinement(false);
+    setIsStarting(true);
+
+    try {
+      const res = await fetch('/api/research/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: pendingTopic, autonomyLevel }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to start research');
+      }
+
+      const data = await res.json();
+
+      setActiveSession({
+        articleId: data.articleId,
+        title: data.title,
+        topic: pendingTopic,
         autonomyLevel,
       });
 
       setTopic('');
+      setPendingTopic('');
     } catch (err) {
       console.error('Failed to start research:', err);
     } finally {
@@ -105,6 +156,7 @@ export default function Home() {
         title: article.title,
         topic: article.topic,
         autonomyLevel: article.autonomy_level,
+        // Note: refinementData would need to be fetched from the article if stored
       });
     }
   };
@@ -123,6 +175,7 @@ export default function Home() {
         title={activeSession.title}
         topic={activeSession.topic}
         autonomyLevel={activeSession.autonomyLevel}
+        refinementData={activeSession.refinementData}
         onClose={handleCloseSession}
       />
     );
@@ -162,7 +215,7 @@ export default function Home() {
                 className="h-12"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !isStarting && topic.trim()) {
-                    handleStartResearch();
+                    handleOpenRefinement();
                   }
                 }}
               />
@@ -199,7 +252,7 @@ export default function Home() {
             </div>
 
             <Button
-              onClick={handleStartResearch}
+              onClick={handleOpenRefinement}
               disabled={!topic.trim() || isStarting}
               className="w-full h-11"
             >
@@ -228,6 +281,15 @@ export default function Home() {
           />
         </div>
       </div>
+
+      {/* Refinement Modal */}
+      <RefinementModal
+        initialTopic={pendingTopic}
+        isOpen={showRefinement}
+        onClose={() => setShowRefinement(false)}
+        onComplete={handleRefinementComplete}
+        onSkip={handleRefinementSkip}
+      />
     </div>
   );
 }

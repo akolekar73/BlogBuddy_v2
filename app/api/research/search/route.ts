@@ -29,9 +29,23 @@ export async function POST(request: NextRequest) {
     let totalGeminiTokens = 0;
     const allSources: Source[] = [];
 
+    // Check if article has refinement_data with research questions
+    const { data: article } = await supabase
+      .from('articles')
+      .select('refinement_data')
+      .eq('id', articleId)
+      .single();
+
+    const refinementQuestions = article?.refinement_data?.research_questions as string[] | undefined;
+
     // Generate additional research questions for higher autonomy levels
     let queries = [query];
-    if (level >= 3) {
+
+    // If refinement data has research questions, use them instead of generating new ones
+    if (refinementQuestions && refinementQuestions.length > 0) {
+      // Use the refinement questions as queries
+      queries = [query, ...refinementQuestions.slice(0, level)];
+    } else if (level >= 3) {
       const { questions, tokensUsed } = await generateResearchQuestions(query, level);
       queries = [query, ...questions.slice(0, level - 1)];
       totalGeminiTokens += tokensUsed;

@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
-import { StartResearchRequest, StartResearchResponse } from '@/lib/types';
+import { StartResearchResponse, RefinementData } from '@/lib/types';
+
+interface StartResearchWithRefinementRequest {
+  topic: string;
+  autonomyLevel: number;
+  refinementData?: RefinementData;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body: StartResearchRequest = await request.json();
-    const { topic, autonomyLevel } = body;
+    const body: StartResearchWithRefinementRequest = await request.json();
+    const { topic, autonomyLevel, refinementData } = body;
 
     if (!topic || topic.trim().length === 0) {
       return NextResponse.json(
@@ -16,21 +22,33 @@ export async function POST(request: NextRequest) {
 
     const validAutonomy = Math.min(5, Math.max(1, autonomyLevel || 3));
 
-    // Use topic as title directly (skip AI generation for now)
-    const title = topic.trim();
+    // Use thesis as title if available, otherwise use topic
+    const title = refinementData?.thesis?.slice(0, 100) || topic.trim();
 
     const supabase = createServerClient();
 
-    // Create the article
+    // Build research_data with queries from refinement if available
+    const researchData: Record<string, unknown> = {
+      queries: refinementData?.research_questions || [topic],
+    };
+
+    // Create the article with refinement_data if provided
+    const insertData: Record<string, unknown> = {
+      title,
+      topic,
+      status: 'research',
+      autonomy_level: validAutonomy,
+      research_data: researchData,
+    };
+
+    // Add refinement_data if provided
+    if (refinementData) {
+      insertData.refinement_data = refinementData;
+    }
+
     const { data: article, error } = await supabase
       .from('articles')
-      .insert({
-        title,
-        topic,
-        status: 'research',
-        autonomy_level: validAutonomy,
-        research_data: { queries: [topic] },
-      })
+      .insert(insertData)
       .select('id, title')
       .single();
 

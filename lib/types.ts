@@ -160,3 +160,113 @@ export interface ArticleCardProps {
   article: Article;
   onContinue: (articleId: string) => void;
 }
+
+// ============================================
+// Topic Refinement Types
+// ============================================
+
+export type Framework = 'why_now' | 'landscape_analysis' | 'problem_solution';
+
+export interface RefinementMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface WhyNowData {
+  technology: string;
+  catalysts: string[];
+  catalyst_details: string;
+  evidence_needed: string;
+  past_failures?: string;
+  current_enablers: string;
+}
+
+export interface LandscapeData {
+  market: string;
+  segmentation_approach: 'technology' | 'customer' | 'vertical' | 'business_model' | 'custom';
+  known_players: string[];
+  contested_aspects: string;
+  value_proposition: string;
+}
+
+export interface ProblemSolutionData {
+  problem: string;
+  who_affected: string;
+  why_unsolved: string;
+  recent_changes: string;
+}
+
+export interface ThesisResult {
+  thesis: string;
+  structure: {
+    sections: Array<{
+      title: string;
+      key_points: string[];
+      suggested_sources: string[];
+    }>;
+  };
+  research_questions: string[];
+  target_sources: string[];
+  estimated_scope: number;
+  recommended_autonomy: number;
+}
+
+export interface FrameworkRecommendation {
+  recommended: Framework[];
+  reasoning: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface RefinementData {
+  refinement_method: 'hybrid' | 'single_framework' | 'skipped';
+  initial_idea: string;
+  socratic_conversation: RefinementMessage[];
+  frameworks_used: Framework[];
+  why_now_data?: WhyNowData;
+  landscape_data?: LandscapeData;
+  problem_solution_data?: ProblemSolutionData;
+  thesis: string;
+  structure: ThesisResult['structure'];
+  research_questions: string[];
+  target_sources: string[];
+  estimated_scope: number;
+  recommended_autonomy: number;
+}
+
+// Refinement API types
+export interface RefineChatRequest {
+  message: string;
+  conversationHistory: RefinementMessage[];
+}
+
+export interface RefineRecommendFrameworkRequest {
+  conversationHistory: RefinementMessage[];
+}
+
+export interface RefineAssistFormRequest {
+  framework: Framework;
+  field: string;
+  userInput: string;
+  context: Record<string, unknown>;
+}
+
+export interface RefineGenerateThesisRequest {
+  initialIdea: string;
+  socraticData: RefinementMessage[];
+  frameworksUsed: Framework[];
+  whyNowData?: WhyNowData;
+  landscapeData?: LandscapeData;
+  problemSolutionData?: ProblemSolutionData;
+}
+
+// Extended Article type with refinement_data
+export interface ArticleWithRefinement extends Article {
+  refinement_data?: RefinementData;
+}
+
+// Update StartResearchRequest to optionally include refinement_data
+export interface StartResearchWithRefinementRequest extends StartResearchRequest {
+  refinementData?: RefinementData;
+}

@@ -9,15 +9,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { SourceCard } from './source-card';
 import { ChatSidebar } from './chat-sidebar';
-import { Source, ArticleStructure } from '@/lib/types';
+import { Source, ArticleStructure, RefinementData } from '@/lib/types';
+import { ChevronDown } from 'lucide-react';
 
 interface ResearchPanelProps {
   articleId: string;
   title: string;
   topic: string;
   autonomyLevel: number;
+  refinementData?: RefinementData;
   onClose: () => void;
 }
 
@@ -26,6 +29,7 @@ export function ResearchPanel({
   title,
   topic,
   autonomyLevel,
+  refinementData,
   onClose,
 }: ResearchPanelProps) {
   const [sources, setSources] = useState<Source[]>([]);
@@ -178,6 +182,61 @@ export function ResearchPanel({
           </Button>
         </div>
       </div>
+
+      {/* Refined Context Banner */}
+      {refinementData && (
+        <div className="border-b bg-primary/5 px-4 py-3">
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+              <div>
+                <p className="text-sm font-medium text-primary">Research Focus</p>
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {refinementData.thesis}
+                </p>
+              </div>
+              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Thesis:</p>
+                <p className="text-sm">{refinementData.thesis}</p>
+              </div>
+              {refinementData.research_questions && refinementData.research_questions.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    Research Questions ({refinementData.research_questions.length}):
+                  </p>
+                  <ul className="text-sm space-y-1">
+                    {refinementData.research_questions.slice(0, 5).map((q, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-muted-foreground">{i + 1}.</span>
+                        <span>{q}</span>
+                      </li>
+                    ))}
+                    {refinementData.research_questions.length > 5 && (
+                      <li className="text-muted-foreground text-xs">
+                        +{refinementData.research_questions.length - 5} more questions
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              {refinementData.frameworks_used && refinementData.frameworks_used.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">Frameworks:</p>
+                  <div className="flex gap-1">
+                    {refinementData.frameworks_used.map((f) => (
+                      <Badge key={f} variant="secondary" className="text-xs">
+                        {f === 'why_now' ? 'Why Now' : f === 'landscape_analysis' ? 'Landscape' : 'Problem-Solution'}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {/* Chat Sidebar */}
