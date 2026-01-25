@@ -4,8 +4,8 @@ import { SourceType } from './types';
 
 // Model configurations
 export const models = {
-  flash: google('gemini-3-flash-preview'),
-  pro: google('gemini-2.0-pro'),
+  flash: google('gemini-2.0-flash'),
+  pro: google('gemini-2.0-flash'),  // Using flash for pro as well since gemini-2.0-pro isn't available
   embedding: google.textEmbeddingModel('text-embedding-004'),
 };
 
