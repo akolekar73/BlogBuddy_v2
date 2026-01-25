@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
-import { generateTitle } from '@/lib/ai';
 import { StartResearchRequest, StartResearchResponse } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -17,8 +16,8 @@ export async function POST(request: NextRequest) {
 
     const validAutonomy = Math.min(5, Math.max(1, autonomyLevel || 3));
 
-    // Generate a title from the topic
-    const title = await generateTitle(topic);
+    // Use topic as title directly (skip AI generation for now)
+    const title = topic.trim();
 
     const supabase = createServerClient();
 
