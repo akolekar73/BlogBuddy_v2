@@ -80,6 +80,7 @@ export type Tables = {
     Row: {
       id: string;
       article_id: string | null;
+      session_id: string | null;
       service: string;
       tokens_input: number;
       tokens_output: number;

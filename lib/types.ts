@@ -270,3 +270,84 @@ export interface ArticleWithRefinement extends Article {
 export interface StartResearchWithRefinementRequest extends StartResearchRequest {
   refinementData?: RefinementData;
 }
+
+// ============================================
+// Session and Token Tracking Types
+// ============================================
+
+export interface SessionTokenUsage {
+  current_session: {
+    tavily_requests: number;
+    gemini_tokens: number;
+    claude_tokens: number;
+    estimated_cost: number;
+  };
+  today: {
+    tavily_requests: number;
+    gemini_tokens: number;
+    claude_tokens: number;
+    total_cost: number;
+  };
+  this_month: {
+    tavily_requests: number;
+    gemini_tokens: number;
+    claude_tokens: number;
+    total_cost: number;
+  };
+  limits: {
+    tavily_monthly: number;
+    gemini_daily: number;
+    budget_monthly: number;
+  };
+  warning?: string;
+}
+
+// ============================================
+// Structured Research Types
+// ============================================
+
+export type ResearchSectionStatus = 'pending' | 'researching' | 'complete';
+
+export interface ResearchSection {
+  title: string;
+  key_points: string[];
+  status: ResearchSectionStatus;
+  sources: ResearchSource[];
+  progress: number;
+}
+
+export interface ResearchSource {
+  id: string;
+  url: string;
+  title: string;
+  summary: string;
+}
+
+export interface StructuredResearchProgress {
+  currentSection: number;
+  sections: ResearchSection[];
+  overallProgress: number;
+}
+
+// ============================================
+// Phase Navigation Types
+// ============================================
+
+export type AppPhase = 'idle' | 'refinement' | 'structured_research' | 'complete';
+export type RefinementStep = 'socratic' | 'framework' | 'thesis_review';
+
+export interface SavedRefinementStates {
+  socraticData: RefinementMessage[] | null;
+  frameworkData: Framework[] | null;
+  thesisData: ThesisResult | null;
+}
+
+// ============================================
+// Form Feedback Types
+// ============================================
+
+export interface FieldFeedback {
+  suggestion: string;
+  canApply: boolean;
+  replacement?: string;
+}

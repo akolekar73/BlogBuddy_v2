@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
 
     // Build messages for the AI
     const messages = [
-      { role: 'system' as const, content: SOCRATIC_SYSTEM_PROMPT },
       ...conversationHistory.map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
@@ -30,6 +29,7 @@ export async function POST(request: NextRequest) {
     // Stream the response using Gemini Pro for better reasoning
     const result = streamText({
       model: models.pro,
+      system: SOCRATIC_SYSTEM_PROMPT,
       messages,
     });
 

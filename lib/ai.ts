@@ -140,7 +140,6 @@ When referencing information, cite the source number in brackets like [1].
 Be concise but insightful.`;
 
   const messages = [
-    { role: 'system' as const, content: systemPrompt },
     ...chatHistory.map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
@@ -150,6 +149,7 @@ Be concise but insightful.`;
 
   return streamText({
     model: models.pro,
+    system: systemPrompt,
     messages,
   });
 }
