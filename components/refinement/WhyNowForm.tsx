@@ -179,8 +179,9 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
   };
 
   return (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="flex h-full">
+      <div className="flex-1 overflow-auto p-6">
+        <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-1">Why Now Framework</h3>
           <p className="text-sm text-muted-foreground">
@@ -344,6 +345,7 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
               Please fill in all required fields (*)
             </p>
           )}
+        </div>
         </div>
       </div>
     </div>

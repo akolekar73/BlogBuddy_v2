@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
-import { ProblemSolutionData } from '@/lib/types';
-import { SidebarAssistant } from './SidebarAssistant';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowRight, Sparkles, Lightbulb, Loader2 } from 'lucide-react';
+import { ProblemSolutionData, FieldFeedback } from '@/lib/types';
 
 interface ProblemSolutionFormProps {
   data: ProblemSolutionData | null;
@@ -16,7 +16,6 @@ interface ProblemSolutionFormProps {
 }
 
 export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemSolutionFormProps) {
-  const [currentField, setCurrentField] = useState('');
   const [formData, setFormData] = useState<ProblemSolutionData>(
     data || {
       problem: '',
@@ -26,10 +25,78 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
     }
   );
 
+  const [feedback, setFeedback] = useState<Record<string, FieldFeedback | null>>({});
+  const [loadingFeedback, setLoadingFeedback] = useState<string | null>(null);
+
   const updateField = (field: keyof ProblemSolutionData, value: string) => {
     const updated = { ...formData, [field]: value };
     setFormData(updated);
     onDataChange(updated);
+  };
+
+  const getFeedback = async (fieldName: keyof ProblemSolutionData) => {
+    const fieldValue = formData[fieldName];
+    if (!fieldValue || fieldValue.length < 3) {
+      return;
+    }
+
+    setLoadingFeedback(fieldName);
+
+    try {
+      const response = await fetch('/api/refine/assist-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          framework: 'problem_solution',
+          field: fieldName,
+          userInput: fieldValue,
+          context: formData,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get feedback');
+      }
+
+      // Read streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let content = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          content += decoder.decode(value, { stream: true });
+        }
+      }
+
+      // Parse the response to extract suggestion and possible replacement
+      const suggestionMatch = content.match(/["']([^"']{20,})["']/);
+      const feedbackData: FieldFeedback = {
+        suggestion: content,
+        canApply: !!suggestionMatch,
+        replacement: suggestionMatch ? suggestionMatch[1] : undefined,
+      };
+
+      setFeedback((prev) => ({ ...prev, [fieldName]: feedbackData }));
+    } catch (error) {
+      console.error('Failed to get feedback:', error);
+    } finally {
+      setLoadingFeedback(null);
+    }
+  };
+
+  const applyFeedback = (fieldName: keyof ProblemSolutionData) => {
+    const fieldFeedback = feedback[fieldName];
+    if (fieldFeedback?.replacement) {
+      updateField(fieldName, fieldFeedback.replacement);
+      setFeedback((prev) => ({ ...prev, [fieldName]: null }));
+    }
+  };
+
+  const clearFeedback = (fieldName: keyof ProblemSolutionData) => {
+    setFeedback((prev) => ({ ...prev, [fieldName]: null }));
   };
 
   const isValid =
@@ -37,6 +104,58 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
     formData.who_affected.trim().length > 0 &&
     formData.why_unsolved.trim().length > 0 &&
     formData.recent_changes.trim().length > 0;
+
+  const renderFeedbackButton = (fieldName: keyof ProblemSolutionData, hasValue: boolean) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={() => getFeedback(fieldName)}
+      disabled={!hasValue || loadingFeedback === fieldName}
+      title="Get AI feedback"
+      className="shrink-0"
+    >
+      {loadingFeedback === fieldName ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
+    </Button>
+  );
+
+  const renderFeedback = (fieldName: keyof ProblemSolutionData) => {
+    const fieldFeedback = feedback[fieldName];
+    if (!fieldFeedback) return null;
+
+    return (
+      <Alert className="mt-2">
+        <Lightbulb className="h-4 w-4" />
+        <AlertDescription>
+          <p className="text-sm whitespace-pre-wrap">{fieldFeedback.suggestion}</p>
+          <div className="flex gap-2 mt-2">
+            {fieldFeedback.canApply && fieldFeedback.replacement && (
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs"
+                onClick={() => applyFeedback(fieldName)}
+              >
+                Apply suggestion
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => clearFeedback(fieldName)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  };
 
   return (
     <div className="flex h-full">
@@ -55,17 +174,21 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
               <Label htmlFor="problem">
                 Problem Description <span className="text-red-500">*</span>
               </Label>
-              <Textarea
-                id="problem"
-                placeholder="Describe the problem in detail. What isn't working? What's broken or missing?"
-                value={formData.problem}
-                onChange={(e) => updateField('problem', e.target.value)}
-                onFocus={() => setCurrentField('problem')}
-                rows={4}
-              />
+              <div className="flex gap-2 items-start">
+                <Textarea
+                  id="problem"
+                  placeholder="Describe the problem in detail. What isn't working? What's broken or missing?"
+                  value={formData.problem}
+                  onChange={(e) => updateField('problem', e.target.value)}
+                  rows={4}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('problem', formData.problem.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Be specific about what the problem is and how it manifests.
               </p>
+              {renderFeedback('problem')}
             </div>
 
             {/* Who is Affected Field */}
@@ -73,16 +196,20 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
               <Label htmlFor="who_affected">
                 Who Experiences This Problem <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="who_affected"
-                placeholder="e.g., Enterprise developers, Startup founders, Healthcare providers"
-                value={formData.who_affected}
-                onChange={(e) => updateField('who_affected', e.target.value)}
-                onFocus={() => setCurrentField('who_affected')}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="who_affected"
+                  placeholder="e.g., Enterprise developers, Startup founders, Healthcare providers"
+                  value={formData.who_affected}
+                  onChange={(e) => updateField('who_affected', e.target.value)}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('who_affected', formData.who_affected.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Define your target audience - who feels this pain the most?
               </p>
+              {renderFeedback('who_affected')}
             </div>
 
             {/* Why Unsolved Field */}
@@ -90,17 +217,21 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
               <Label htmlFor="why_unsolved">
                 Why Is This Unsolved? <span className="text-red-500">*</span>
               </Label>
-              <Textarea
-                id="why_unsolved"
-                placeholder="What barriers have prevented this problem from being solved? Technical challenges? Market dynamics? Incentive misalignment?"
-                value={formData.why_unsolved}
-                onChange={(e) => updateField('why_unsolved', e.target.value)}
-                onFocus={() => setCurrentField('why_unsolved')}
-                rows={3}
-              />
+              <div className="flex gap-2 items-start">
+                <Textarea
+                  id="why_unsolved"
+                  placeholder="What barriers have prevented this problem from being solved? Technical challenges? Market dynamics? Incentive misalignment?"
+                  value={formData.why_unsolved}
+                  onChange={(e) => updateField('why_unsolved', e.target.value)}
+                  rows={3}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('why_unsolved', formData.why_unsolved.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Understanding barriers helps identify what a solution needs to overcome.
               </p>
+              {renderFeedback('why_unsolved')}
             </div>
 
             {/* Recent Changes Field */}
@@ -108,17 +239,21 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
               <Label htmlFor="recent_changes">
                 Recent Changes Enabling Solutions <span className="text-red-500">*</span>
               </Label>
-              <Textarea
-                id="recent_changes"
-                placeholder="What has changed recently that makes solving this problem more feasible? New technology? New data? Changed economics?"
-                value={formData.recent_changes}
-                onChange={(e) => updateField('recent_changes', e.target.value)}
-                onFocus={() => setCurrentField('recent_changes')}
-                rows={3}
-              />
+              <div className="flex gap-2 items-start">
+                <Textarea
+                  id="recent_changes"
+                  placeholder="What has changed recently that makes solving this problem more feasible? New technology? New data? Changed economics?"
+                  value={formData.recent_changes}
+                  onChange={(e) => updateField('recent_changes', e.target.value)}
+                  rows={3}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('recent_changes', formData.recent_changes.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 This connects to the &quot;why now&quot; angle - what enables a solution today?
               </p>
+              {renderFeedback('recent_changes')}
             </div>
           </div>
 
@@ -135,23 +270,6 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
           </div>
         </div>
       </div>
-
-      <SidebarAssistant
-        framework="problem_solution"
-        currentField={currentField}
-        currentValue={
-          currentField === 'problem'
-            ? formData.problem
-            : currentField === 'who_affected'
-            ? formData.who_affected
-            : currentField === 'why_unsolved'
-            ? formData.why_unsolved
-            : currentField === 'recent_changes'
-            ? formData.recent_changes
-            : ''
-        }
-        formContext={formData}
-      />
     </div>
   );
 }

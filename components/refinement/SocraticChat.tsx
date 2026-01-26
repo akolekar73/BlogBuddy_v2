@@ -42,7 +42,7 @@ export function SocraticChat({
       const initialMessage: RefinementMessage = {
         id: Date.now().toString(),
         role: 'user',
-        content: `I want to write about: ${initialTopic}`,
+        content: `I'm looking to write about:\n\n"${initialTopic}"`,
         timestamp: new Date().toISOString(),
       };
       handleSendMessage(initialMessage.content, [initialMessage]);

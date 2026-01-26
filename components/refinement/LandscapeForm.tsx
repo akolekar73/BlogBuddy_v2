@@ -7,9 +7,9 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, X } from 'lucide-react';
-import { LandscapeData } from '@/lib/types';
-import { SidebarAssistant } from './SidebarAssistant';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowRight, X, Sparkles, Lightbulb, Loader2 } from 'lucide-react';
+import { LandscapeData, FieldFeedback } from '@/lib/types';
 
 interface LandscapeFormProps {
   data: LandscapeData | null;
@@ -26,7 +26,6 @@ const SEGMENTATION_OPTIONS = [
 ];
 
 export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormProps) {
-  const [currentField, setCurrentField] = useState('');
   const [playerInput, setPlayerInput] = useState('');
   const [formData, setFormData] = useState<LandscapeData>(
     data || {
@@ -37,6 +36,9 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
       value_proposition: '',
     }
   );
+
+  const [feedback, setFeedback] = useState<Record<string, FieldFeedback | null>>({});
+  const [loadingFeedback, setLoadingFeedback] = useState<string | null>(null);
 
   const updateField = (field: keyof LandscapeData, value: string | string[]) => {
     const updated = { ...formData, [field]: value };
@@ -64,10 +66,127 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
     }
   };
 
+  const getFeedback = async (fieldName: keyof LandscapeData) => {
+    const fieldValue = formData[fieldName];
+    if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.length < 3)) {
+      return;
+    }
+
+    setLoadingFeedback(fieldName);
+
+    try {
+      const response = await fetch('/api/refine/assist-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          framework: 'landscape_analysis',
+          field: fieldName,
+          userInput: Array.isArray(fieldValue) ? fieldValue.join(', ') : fieldValue,
+          context: formData,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get feedback');
+      }
+
+      // Read streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let content = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          content += decoder.decode(value, { stream: true });
+        }
+      }
+
+      // Parse the response to extract suggestion and possible replacement
+      const suggestionMatch = content.match(/["']([^"']{20,})["']/);
+      const feedbackData: FieldFeedback = {
+        suggestion: content,
+        canApply: !!suggestionMatch,
+        replacement: suggestionMatch ? suggestionMatch[1] : undefined,
+      };
+
+      setFeedback((prev) => ({ ...prev, [fieldName]: feedbackData }));
+    } catch (error) {
+      console.error('Failed to get feedback:', error);
+    } finally {
+      setLoadingFeedback(null);
+    }
+  };
+
+  const applyFeedback = (fieldName: keyof LandscapeData) => {
+    const fieldFeedback = feedback[fieldName];
+    if (fieldFeedback?.replacement) {
+      updateField(fieldName, fieldFeedback.replacement);
+      setFeedback((prev) => ({ ...prev, [fieldName]: null }));
+    }
+  };
+
+  const clearFeedback = (fieldName: keyof LandscapeData) => {
+    setFeedback((prev) => ({ ...prev, [fieldName]: null }));
+  };
+
   const isValid =
     formData.market.trim().length > 0 &&
     formData.known_players.length > 0 &&
     formData.value_proposition.trim().length > 0;
+
+  const renderFeedbackButton = (fieldName: keyof LandscapeData, hasValue: boolean) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={() => getFeedback(fieldName)}
+      disabled={!hasValue || loadingFeedback === fieldName}
+      title="Get AI feedback"
+      className="shrink-0"
+    >
+      {loadingFeedback === fieldName ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
+    </Button>
+  );
+
+  const renderFeedback = (fieldName: keyof LandscapeData) => {
+    const fieldFeedback = feedback[fieldName];
+    if (!fieldFeedback) return null;
+
+    return (
+      <Alert className="mt-2">
+        <Lightbulb className="h-4 w-4" />
+        <AlertDescription>
+          <p className="text-sm whitespace-pre-wrap">{fieldFeedback.suggestion}</p>
+          <div className="flex gap-2 mt-2">
+            {fieldFeedback.canApply && fieldFeedback.replacement && (
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 text-xs"
+                onClick={() => applyFeedback(fieldName)}
+              >
+                Apply suggestion
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs"
+              onClick={() => clearFeedback(fieldName)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  };
 
   return (
     <div className="flex h-full">
@@ -86,16 +205,20 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
               <Label htmlFor="market">
                 Market/Space Being Mapped <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="market"
-                placeholder="e.g., AI Code Assistants, Enterprise LLM Platforms, MLOps Tools"
-                value={formData.market}
-                onChange={(e) => updateField('market', e.target.value)}
-                onFocus={() => setCurrentField('market')}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="market"
+                  placeholder="e.g., AI Code Assistants, Enterprise LLM Platforms, MLOps Tools"
+                  value={formData.market}
+                  onChange={(e) => updateField('market', e.target.value)}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('market', formData.market.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Define the boundaries of the market you&apos;re analyzing.
               </p>
+              {renderFeedback('market')}
             </div>
 
             {/* Segmentation Approach */}
@@ -138,11 +261,12 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
                   value={playerInput}
                   onChange={(e) => setPlayerInput(e.target.value)}
                   onKeyDown={handlePlayerKeyDown}
-                  onFocus={() => setCurrentField('known_players')}
+                  className="flex-1"
                 />
                 <Button type="button" variant="outline" onClick={addPlayer}>
                   Add
                 </Button>
+                {renderFeedbackButton('known_players', formData.known_players.length > 0)}
               </div>
               {formData.known_players.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -162,22 +286,27 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
               <p className="text-xs text-muted-foreground">
                 Add companies, products, or projects you&apos;re aware of in this space.
               </p>
+              {renderFeedback('known_players')}
             </div>
 
             {/* Contested Aspects Field */}
             <div className="space-y-2">
               <Label htmlFor="contested_aspects">Contested or Unclear Aspects</Label>
-              <Textarea
-                id="contested_aspects"
-                placeholder="What aspects of this market are debated or unclear? Where do experts disagree?"
-                value={formData.contested_aspects}
-                onChange={(e) => updateField('contested_aspects', e.target.value)}
-                onFocus={() => setCurrentField('contested_aspects')}
-                rows={3}
-              />
+              <div className="flex gap-2 items-start">
+                <Textarea
+                  id="contested_aspects"
+                  placeholder="What aspects of this market are debated or unclear? Where do experts disagree?"
+                  value={formData.contested_aspects}
+                  onChange={(e) => updateField('contested_aspects', e.target.value)}
+                  rows={3}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('contested_aspects', formData.contested_aspects.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Identifying controversies makes your analysis more valuable.
               </p>
+              {renderFeedback('contested_aspects')}
             </div>
 
             {/* Value Proposition Field */}
@@ -185,17 +314,21 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
               <Label htmlFor="value_proposition">
                 Value to Readers <span className="text-red-500">*</span>
               </Label>
-              <Textarea
-                id="value_proposition"
-                placeholder="What unique insight will readers gain from your landscape analysis? Why should they care?"
-                value={formData.value_proposition}
-                onChange={(e) => updateField('value_proposition', e.target.value)}
-                onFocus={() => setCurrentField('value_proposition')}
-                rows={3}
-              />
+              <div className="flex gap-2 items-start">
+                <Textarea
+                  id="value_proposition"
+                  placeholder="What unique insight will readers gain from your landscape analysis? Why should they care?"
+                  value={formData.value_proposition}
+                  onChange={(e) => updateField('value_proposition', e.target.value)}
+                  rows={3}
+                  className="flex-1"
+                />
+                {renderFeedbackButton('value_proposition', formData.value_proposition.length > 0)}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Help readers understand what they&apos;ll learn from your analysis.
               </p>
+              {renderFeedback('value_proposition')}
             </div>
           </div>
 
@@ -212,23 +345,6 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
           </div>
         </div>
       </div>
-
-      <SidebarAssistant
-        framework="landscape_analysis"
-        currentField={currentField}
-        currentValue={
-          currentField === 'market'
-            ? formData.market
-            : currentField === 'known_players'
-            ? formData.known_players.join(', ')
-            : currentField === 'contested_aspects'
-            ? formData.contested_aspects
-            : currentField === 'value_proposition'
-            ? formData.value_proposition
-            : ''
-        }
-        formContext={formData}
-      />
     </div>
   );
 }
