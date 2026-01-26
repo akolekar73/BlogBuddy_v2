@@ -6,7 +6,6 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const sessionId = searchParams.get('sessionId');
-    const articleId = searchParams.get('articleId');
 
     const supabase = createServerClient();
 
