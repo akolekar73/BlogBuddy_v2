@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, RefreshCw, Edit2, Check, X, Rocket, ArrowLeft } from 'lucide-react';
+import { Loader2, RefreshCw, Edit2, Check, X, Rocket, ArrowLeft, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -121,6 +121,71 @@ export function ThesisReview({
     onThesisChange(updated);
   };
 
+  const updateSectionTitle = (sectionIndex: number, newTitle: string) => {
+    if (!thesis) return;
+    const updated = { ...thesis };
+    updated.structure = {
+      ...updated.structure,
+      sections: updated.structure.sections.map((section, i) =>
+        i === sectionIndex ? { ...section, title: newTitle } : section
+      ),
+    };
+    onThesisChange(updated);
+  };
+
+  const updateSectionKeyPoint = (sectionIndex: number, pointIndex: number, newValue: string) => {
+    if (!thesis) return;
+    const updated = { ...thesis };
+    updated.structure = {
+      ...updated.structure,
+      sections: updated.structure.sections.map((section, i) =>
+        i === sectionIndex
+          ? {
+              ...section,
+              key_points: section.key_points.map((point, j) =>
+                j === pointIndex ? newValue : point
+              ),
+            }
+          : section
+      ),
+    };
+    onThesisChange(updated);
+  };
+
+  const removeSectionKeyPoint = (sectionIndex: number, pointIndex: number) => {
+    if (!thesis) return;
+    const updated = { ...thesis };
+    updated.structure = {
+      ...updated.structure,
+      sections: updated.structure.sections.map((section, i) =>
+        i === sectionIndex
+          ? {
+              ...section,
+              key_points: section.key_points.filter((_, j) => j !== pointIndex),
+            }
+          : section
+      ),
+    };
+    onThesisChange(updated);
+  };
+
+  const addSectionKeyPoint = (sectionIndex: number) => {
+    if (!thesis) return;
+    const updated = { ...thesis };
+    updated.structure = {
+      ...updated.structure,
+      sections: updated.structure.sections.map((section, i) =>
+        i === sectionIndex
+          ? {
+              ...section,
+              key_points: [...section.key_points, 'New key point'],
+            }
+          : section
+      ),
+    };
+    onThesisChange(updated);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
@@ -202,17 +267,46 @@ export function ThesisReview({
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Proposed Article Structure</CardTitle>
+              <p className="text-xs text-muted-foreground">Click on section titles or key points to edit them</p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {thesis.structure.sections.map((section, index) => (
-                  <div key={index} className="border-l-2 border-primary/30 pl-4">
-                    <h4 className="font-medium">{section.title}</h4>
-                    <ul className="text-sm text-muted-foreground mt-1 space-y-1">
-                      {section.key_points.map((point, i) => (
-                        <li key={i}>• {point}</li>
+                {thesis.structure.sections.map((section, sectionIndex) => (
+                  <div key={sectionIndex} className="border-l-2 border-primary/30 pl-4">
+                    <Input
+                      value={section.title}
+                      onChange={(e) => updateSectionTitle(sectionIndex, e.target.value)}
+                      className="font-medium text-base h-8 px-2 border-transparent hover:border-input focus:border-input"
+                    />
+                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                      {section.key_points.map((point, pointIndex) => (
+                        <div key={pointIndex} className="flex items-center gap-1 group">
+                          <span>•</span>
+                          <Input
+                            value={point}
+                            onChange={(e) => updateSectionKeyPoint(sectionIndex, pointIndex, e.target.value)}
+                            className="flex-1 h-7 text-sm px-2 border-transparent hover:border-input focus:border-input"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                            onClick={() => removeSectionKeyPoint(sectionIndex, pointIndex)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       ))}
-                    </ul>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground"
+                        onClick={() => addSectionKeyPoint(sectionIndex)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add point
+                      </Button>
+                    </div>
                     {section.suggested_sources.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {section.suggested_sources.map((source, i) => (

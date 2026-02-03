@@ -33,8 +33,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for Tavily API key
+    const tavilyApiKey = process.env.TAVILY_API_KEY;
+    if (!tavilyApiKey) {
+      console.error('TAVILY_API_KEY is not set');
+      return NextResponse.json(
+        { error: 'Tavily API key not configured', sources: [] },
+        { status: 500 }
+      );
+    }
+
     const supabase = createServerClient();
-    const tavilyClient = tavily({ apiKey: process.env.TAVILY_API_KEY || '' });
+    const tavilyClient = tavily({ apiKey: tavilyApiKey });
     const results: Array<{
       id: string;
       url: string;
@@ -132,6 +142,11 @@ export async function POST(request: NextRequest) {
         }
       } catch (searchError) {
         console.error(`Error searching for "${query}":`, searchError);
+        // Log more details about the error
+        if (searchError instanceof Error) {
+          console.error('Error message:', searchError.message);
+          console.error('Error stack:', searchError.stack);
+        }
         // Continue with other queries
       }
     }

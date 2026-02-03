@@ -36,7 +36,7 @@ export function SocraticChat({
 
   // Start the conversation with the initial topic
   useEffect(() => {
-    if (!hasInitialized.current && messages.length === 0) {
+    if (!hasInitialized.current && messages.length === 0 && initialTopic) {
       hasInitialized.current = true;
       // Start with the user's topic
       const initialMessage: RefinementMessage = {
@@ -45,6 +45,8 @@ export function SocraticChat({
         content: `I'm looking to write about:\n\n"${initialTopic}"`,
         timestamp: new Date().toISOString(),
       };
+      // Display the initial message first, then send to API
+      onMessagesChange([initialMessage]);
       handleSendMessage(initialMessage.content, [initialMessage]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
