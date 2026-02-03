@@ -75,24 +75,30 @@ export function ResearchPanel({
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        throw new Error('Search failed');
+        throw new Error(data.error || 'Search failed');
       }
 
-      const data = await res.json();
-      setSearchStatus(`Found ${data.sources.length} sources`);
+      if (data.sources && data.sources.length > 0) {
+        setSearchStatus(`Found ${data.sources.length} sources`);
 
-      // Merge new sources with existing ones
-      setSources((prev) => {
-        const existingUrls = new Set(prev.map((s) => s.url));
-        const newSources = data.sources.filter((s: Source) => !existingUrls.has(s.url));
-        return [...prev, ...newSources];
-      });
+        // Merge new sources with existing ones
+        setSources((prev) => {
+          const existingUrls = new Set(prev.map((s) => s.url));
+          const newSources = data.sources.filter((s: Source) => !existingUrls.has(s.url));
+          return [...prev, ...newSources];
+        });
+      } else {
+        setSearchStatus('No new sources found');
+      }
 
       setSearchQuery('');
     } catch (err) {
-      setError('Search failed. Please try again.');
-      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : 'Search failed. Please try again.';
+      setError(errorMessage);
+      console.error('Search error:', err);
     } finally {
       setIsSearching(false);
       setTimeout(() => setSearchStatus(''), 3000);
