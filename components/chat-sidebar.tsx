@@ -116,7 +116,7 @@ export function ChatSidebar({ articleId, savedSourceCount }: ChatSidebarProps) {
   };
 
   return (
-    <div className="flex flex-col h-full border-r bg-zinc-50/50 dark:bg-zinc-900/50">
+    <div className="flex flex-col h-full border-r bg-card/50">
       <div className="p-4 border-b">
         <h3 className="font-semibold flex items-center gap-2">
           <Bot className="h-5 w-5" />
@@ -180,7 +180,7 @@ export function ChatSidebar({ articleId, savedSourceCount }: ChatSidebarProps) {
                 <div className="whitespace-pre-wrap">{message.content}</div>
               </div>
               {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <User className="h-4 w-4" />
                 </div>
               )}

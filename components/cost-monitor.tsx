@@ -22,7 +22,7 @@ export function CostMonitor({ stats, isLoading }: CostMonitorProps) {
 
   if (isLoading || !stats) {
     return (
-      <div className="border-b bg-zinc-50 dark:bg-zinc-900">
+      <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -39,7 +39,7 @@ export function CostMonitor({ stats, isLoading }: CostMonitorProps) {
   const geminiPercent = (stats.gemini_tokens / stats.gemini_limit) * 100;
 
   return (
-    <div className="border-b bg-zinc-50 dark:bg-zinc-900">
+    <div className="border-b bg-card">
       <div className="container mx-auto px-4">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>

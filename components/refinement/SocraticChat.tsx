@@ -191,7 +191,7 @@ export function SocraticChat({
                 <div className="whitespace-pre-wrap">{message.content}</div>
               </div>
               {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <User className="h-4 w-4" />
                 </div>
               )}
