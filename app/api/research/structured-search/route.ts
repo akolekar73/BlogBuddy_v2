@@ -55,13 +55,27 @@ export async function POST(request: NextRequest) {
     // Generate search queries for this section
     const queries = await generateSectionQueries(section, autonomyLevel);
 
+    // Domains to exclude for better source quality
+    const excludeDomains = [
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'linkedin.com',
+      'instagram.com',
+      'tiktok.com',
+      'reddit.com',
+      'pinterest.com',
+      'quora.com',
+    ];
+
     // Search with Tavily
     for (const query of queries) {
       try {
         const tavilyResults = await tavilyClient.search(query, {
-          maxResults: 2,
+          maxResults: 3,
           searchDepth: autonomyLevel >= 3 ? 'advanced' : 'basic',
           includeRawContent: 'text',
+          excludeDomains,
         });
 
         // Track Tavily usage
@@ -71,6 +85,21 @@ export async function POST(request: NextRequest) {
         for (const result of tavilyResults.results || []) {
           // Skip if we already have this URL
           if (results.some((r) => r.url === result.url)) continue;
+
+          // Skip low-quality sources that might have slipped through
+          const urlLower = result.url.toLowerCase();
+          if (
+            urlLower.includes('facebook.com') ||
+            urlLower.includes('twitter.com') ||
+            urlLower.includes('x.com/') ||
+            urlLower.includes('linkedin.com') ||
+            urlLower.includes('instagram.com') ||
+            urlLower.includes('tiktok.com') ||
+            urlLower.includes('reddit.com') ||
+            urlLower.includes('pinterest.com')
+          ) {
+            continue;
+          }
 
           const content = result.rawContent || result.content || '';
 
@@ -110,6 +139,7 @@ export async function POST(request: NextRequest) {
           const sourceType = detectSourceType(result.url);
 
           // Save source
+          console.log('Attempting to save source to Supabase:', result.url);
           const { data: source, error } = await supabase
             .from('sources')
             .insert({
@@ -122,16 +152,14 @@ export async function POST(request: NextRequest) {
               relevance_score: result.score || 0.5,
               saved: false,
               embedding: JSON.stringify(embedding),
-              metadata: {
-                section_index: sectionIndex,
-                section_title: section.title,
-                query: query,
-              },
             })
             .select()
             .single();
 
-          if (!error && source) {
+          if (error) {
+            console.error('Supabase insert error:', error.message, error.details, error.hint);
+          } else if (source) {
+            console.log('Successfully saved source:', source.id);
             results.push({
               id: source.id,
               url: source.url,
@@ -151,6 +179,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('Returning', results.length, 'sources from structured search');
     return NextResponse.json({ sources: results });
   } catch (error) {
     console.error('Structured search error:', error);

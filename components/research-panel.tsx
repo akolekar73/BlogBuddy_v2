@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Sparkles, X, BookOpen, FileText } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Loader2, Sparkles, BookOpen, FileText, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -32,6 +33,7 @@ export function ResearchPanel({
   refinementData,
   onClose,
 }: ResearchPanelProps) {
+  const router = useRouter();
   const [sources, setSources] = useState<Source[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isGeneratingStructure, setIsGeneratingStructure] = useState(false);
@@ -58,11 +60,17 @@ export function ResearchPanel({
 
   const handleSearch = async (query?: string) => {
     const searchTerm = query || searchQuery || topic;
-    if (!searchTerm.trim()) return;
+    console.log('handleSearch called with:', { query, searchQuery, topic, searchTerm });
+
+    if (!searchTerm.trim()) {
+      console.log('Search term is empty, returning');
+      return;
+    }
 
     setIsSearching(true);
     setError('');
     setSearchStatus('Starting search...');
+    console.log('Starting search for:', searchTerm);
 
     try {
       const res = await fetch('/api/research/search', {
@@ -75,7 +83,9 @@ export function ResearchPanel({
         }),
       });
 
+      console.log('Fetch response status:', res.status);
       const data = await res.json();
+      console.log('Fetch response data:', data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Search failed');
@@ -181,10 +191,11 @@ export function ResearchPanel({
           <h2 className="font-semibold text-lg truncate">{title}</h2>
           <p className="text-sm text-muted-foreground truncate">{topic}</p>
         </div>
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-3 ml-4">
           <Badge variant="secondary">{savedSources.length} saved</Badge>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5" />
+          <Button onClick={() => router.push(`/article/${articleId}`)} className="gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            Continue to Writing
           </Button>
         </div>
       </div>
@@ -444,6 +455,13 @@ export function ResearchPanel({
                         </CardContent>
                       </Card>
                     )}
+
+                    <div className="flex justify-center pt-6">
+                      <Button size="lg" onClick={() => router.push(`/article/${articleId}`)} className="gap-2">
+                        <ArrowRight className="h-4 w-4" />
+                        Start Writing
+                      </Button>
+                    </div>
                   </div>
                 )}
               </TabsContent>

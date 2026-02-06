@@ -5,9 +5,11 @@ import { SearchRequest, SearchResponse, Source } from '@/lib/types';
 import { tavily } from '@tavily/core';
 
 export async function POST(request: NextRequest) {
+  console.log('Search API called');
   try {
     const body: SearchRequest = await request.json();
     const { articleId, query, autonomyLevel } = body;
+    console.log('Search request:', { articleId, query, autonomyLevel });
 
     if (!articleId || !query) {
       return NextResponse.json(
@@ -29,7 +31,17 @@ export async function POST(request: NextRequest) {
     // Initialize Tavily client inside the handler
     const tavilyClient = tavily({ apiKey: tavilyApiKey });
 
-    const supabase = createServerClient();
+    // Check Supabase configuration
+    let supabase;
+    try {
+      supabase = createServerClient();
+    } catch (supabaseError) {
+      console.error('Supabase configuration error:', supabaseError);
+      return NextResponse.json(
+        { error: 'Database not configured. Check Supabase environment variables.', sources: [] },
+        { status: 500 }
+      );
+    }
     const level = Math.min(5, Math.max(1, autonomyLevel || 3));
 
     // Number of searches based on autonomy level
@@ -61,14 +73,31 @@ export async function POST(request: NextRequest) {
       totalGeminiTokens += tokensUsed;
     }
 
+    // Domains to exclude for better source quality
+    const excludeDomains = [
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'linkedin.com',
+      'instagram.com',
+      'tiktok.com',
+      'reddit.com',
+      'pinterest.com',
+      'quora.com',
+    ];
+
     // Perform searches
+    console.log('Starting searches with queries:', queries);
     for (const searchQuery of queries) {
       try {
+        console.log('Searching Tavily for:', searchQuery);
         const searchResult = await tavilyClient.search(searchQuery, {
           maxResults: Math.ceil(maxResults / queries.length),
           includeRawContent: 'text',
           searchDepth: level >= 4 ? 'advanced' : 'basic',
+          excludeDomains,
         });
+        console.log('Tavily returned', searchResult.results?.length || 0, 'results');
 
         totalTavilyRequests++;
 
@@ -76,6 +105,21 @@ export async function POST(request: NextRequest) {
         for (const result of searchResult.results) {
           // Skip if we already have this URL
           if (allSources.some((s) => s.url === result.url)) continue;
+
+          // Skip low-quality sources that might have slipped through
+          const urlLower = result.url.toLowerCase();
+          if (
+            urlLower.includes('facebook.com') ||
+            urlLower.includes('twitter.com') ||
+            urlLower.includes('x.com/') ||
+            urlLower.includes('linkedin.com') ||
+            urlLower.includes('instagram.com') ||
+            urlLower.includes('tiktok.com') ||
+            urlLower.includes('reddit.com') ||
+            urlLower.includes('pinterest.com')
+          ) {
+            continue;
+          }
 
           // Summarize and classify the content
           const content = result.rawContent || result.content || '';
@@ -90,6 +134,7 @@ export async function POST(request: NextRequest) {
           const embedding = await generateEmbedding(textForEmbedding);
 
           // Insert source into database
+          console.log('Attempting to insert source:', result.url);
           const { data: source, error } = await supabase
             .from('sources')
             .insert({
@@ -106,7 +151,11 @@ export async function POST(request: NextRequest) {
             .select()
             .single();
 
-          if (!error && source) {
+          if (error) {
+            console.error('Supabase insert error for:', result.url);
+            console.error('Error details:', error.message, error.details, error.hint, error.code);
+          } else if (source) {
+            console.log('Successfully inserted source:', source.id, result.url);
             allSources.push({
               id: source.id,
               article_id: source.article_id,
@@ -168,6 +217,8 @@ export async function POST(request: NextRequest) {
         .update({ research_data: researchData })
         .eq('id', articleId);
     }
+
+    console.log('Search complete. Returning', allSources.length, 'sources');
 
     const response: SearchResponse = {
       sources: allSources,
