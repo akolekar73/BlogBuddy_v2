@@ -6,16 +6,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowRight, Sparkles, Lightbulb, Loader2 } from 'lucide-react';
-import { ProblemSolutionData, FieldFeedback } from '@/lib/types';
+import { ArrowRight, Sparkles, Lightbulb, Loader2, Wand2 } from 'lucide-react';
+import { ProblemSolutionData, FieldFeedback, RefinementMessage } from '@/lib/types';
 
 interface ProblemSolutionFormProps {
   data: ProblemSolutionData | null;
   onDataChange: (data: ProblemSolutionData) => void;
   onComplete: () => void;
+  conversationHistory?: RefinementMessage[];
 }
 
-export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemSolutionFormProps) {
+export function ProblemSolutionForm({ data, onDataChange, onComplete, conversationHistory }: ProblemSolutionFormProps) {
   const [formData, setFormData] = useState<ProblemSolutionData>(
     data || {
       problem: '',
@@ -27,6 +28,59 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete }: ProblemS
 
   const [feedback, setFeedback] = useState<Record<string, FieldFeedback | null>>({});
   const [loadingFeedback, setLoadingFeedback] = useState<string | null>(null);
+  const [loadingSuggest, setLoadingSuggest] = useState<string | null>(null);
+
+  const suggestFromConversation = async (fieldName: keyof ProblemSolutionData, fieldLabel: string) => {
+    if (!conversationHistory || conversationHistory.length === 0) return;
+
+    setLoadingSuggest(fieldName);
+    try {
+      const response = await fetch('/api/refine/suggest-field', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          framework: 'problem_solution',
+          field: fieldName,
+          fieldLabel,
+          conversationHistory,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.suggestion) {
+          updateField(fieldName, data.suggestion);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get suggestion:', error);
+    } finally {
+      setLoadingSuggest(null);
+    }
+  };
+
+  const renderSuggestButton = (fieldName: keyof ProblemSolutionData, fieldLabel: string) => {
+    if (!conversationHistory || conversationHistory.length === 0) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => suggestFromConversation(fieldName, fieldLabel)}
+        disabled={loadingSuggest === fieldName}
+        title="Suggest from conversation"
+        className="shrink-0 gap-1"
+      >
+        {loadingSuggest === fieldName ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Wand2 className="h-3 w-3" />
+        )}
+        Suggest
+      </Button>
+    );
+  };
 
   const updateField = (field: keyof ProblemSolutionData, value: string) => {
     const updated = { ...formData, [field]: value };

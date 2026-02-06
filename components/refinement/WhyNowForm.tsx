@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowRight, Sparkles, Lightbulb, Loader2 } from 'lucide-react';
-import { WhyNowData, FieldFeedback } from '@/lib/types';
+import { ArrowRight, Sparkles, Lightbulb, Loader2, Wand2 } from 'lucide-react';
+import { WhyNowData, FieldFeedback, RefinementMessage } from '@/lib/types';
 
 interface WhyNowFormProps {
   data: WhyNowData | null;
   onDataChange: (data: WhyNowData) => void;
   onComplete: () => void;
+  conversationHistory?: RefinementMessage[];
 }
 
 const CATALYST_OPTIONS = [
@@ -26,7 +27,7 @@ const CATALYST_OPTIONS = [
   { id: 'other', label: 'Other' },
 ];
 
-export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) {
+export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory }: WhyNowFormProps) {
   const [formData, setFormData] = useState<WhyNowData>(
     data || {
       technology: '',
@@ -40,6 +41,7 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
 
   const [feedback, setFeedback] = useState<Record<string, FieldFeedback | null>>({});
   const [loadingFeedback, setLoadingFeedback] = useState<string | null>(null);
+  const [loadingSuggest, setLoadingSuggest] = useState<string | null>(null);
 
   const updateField = (field: keyof WhyNowData, value: string | string[]) => {
     const updated = { ...formData, [field]: value };
@@ -53,6 +55,35 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
       ? current.filter((c) => c !== catalystId)
       : [...current, catalystId];
     updateField('catalysts', updated);
+  };
+
+  const suggestFromConversation = async (fieldName: keyof WhyNowData, fieldLabel: string) => {
+    if (!conversationHistory || conversationHistory.length === 0) return;
+
+    setLoadingSuggest(fieldName);
+    try {
+      const response = await fetch('/api/refine/suggest-field', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          framework: 'why_now',
+          field: fieldName,
+          fieldLabel,
+          conversationHistory,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.suggestion) {
+          updateField(fieldName, data.suggestion);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get suggestion:', error);
+    } finally {
+      setLoadingSuggest(null);
+    }
   };
 
   const getFeedback = async (fieldName: keyof WhyNowData) => {
@@ -144,6 +175,29 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
     </Button>
   );
 
+  const renderSuggestButton = (fieldName: keyof WhyNowData, fieldLabel: string) => {
+    if (!conversationHistory || conversationHistory.length === 0) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => suggestFromConversation(fieldName, fieldLabel)}
+        disabled={loadingSuggest === fieldName}
+        title="Suggest from conversation"
+        className="shrink-0 gap-1"
+      >
+        {loadingSuggest === fieldName ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Wand2 className="h-3 w-3" />
+        )}
+        Suggest
+      </Button>
+    );
+  };
+
   const renderFeedback = (fieldName: keyof WhyNowData) => {
     const fieldFeedback = feedback[fieldName];
     if (!fieldFeedback) return null;
@@ -193,10 +247,13 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
         <div className="space-y-4">
           {/* Technology/Trend Field */}
           <div className="space-y-2">
-            <Label htmlFor="technology">
-              Technology or Trend Being Analyzed{' '}
-              <span className="text-red-500">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="technology">
+                Technology or Trend Being Analyzed{' '}
+                <span className="text-red-500">*</span>
+              </Label>
+              {renderSuggestButton('technology', 'Technology or Trend')}
+            </div>
             <div className="flex gap-2">
               <Input
                 id="technology"
@@ -239,9 +296,12 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
 
           {/* Catalyst Details Field */}
           <div className="space-y-2">
-            <Label htmlFor="catalyst_details">
-              Elaborate on Catalysts <span className="text-red-500">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="catalyst_details">
+                Elaborate on Catalysts <span className="text-red-500">*</span>
+              </Label>
+              {renderSuggestButton('catalyst_details', 'Catalyst Details')}
+            </div>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="catalyst_details"
@@ -264,7 +324,10 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
 
           {/* Evidence Needed Field */}
           <div className="space-y-2">
-            <Label htmlFor="evidence_needed">Evidence Needed</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="evidence_needed">Evidence Needed</Label>
+              {renderSuggestButton('evidence_needed', 'Evidence Needed')}
+            </div>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="evidence_needed"
@@ -287,7 +350,10 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
 
           {/* Past Failures Field */}
           <div className="space-y-2">
-            <Label htmlFor="past_failures">Why Past Attempts Failed</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="past_failures">Why Past Attempts Failed</Label>
+              {renderSuggestButton('past_failures', 'Past Failures')}
+            </div>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="past_failures"
@@ -311,9 +377,12 @@ export function WhyNowForm({ data, onDataChange, onComplete }: WhyNowFormProps) 
 
           {/* Current Enablers Field */}
           <div className="space-y-2">
-            <Label htmlFor="current_enablers">
-              What&apos;s Different Now <span className="text-red-500">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="current_enablers">
+                What&apos;s Different Now <span className="text-red-500">*</span>
+              </Label>
+              {renderSuggestButton('current_enablers', 'Current Enablers')}
+            </div>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="current_enablers"

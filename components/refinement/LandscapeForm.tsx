@@ -8,13 +8,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowRight, X, Sparkles, Lightbulb, Loader2 } from 'lucide-react';
-import { LandscapeData, FieldFeedback } from '@/lib/types';
+import { ArrowRight, X, Sparkles, Lightbulb, Loader2, Wand2 } from 'lucide-react';
+import { LandscapeData, FieldFeedback, RefinementMessage } from '@/lib/types';
 
 interface LandscapeFormProps {
   data: LandscapeData | null;
   onDataChange: (data: LandscapeData) => void;
   onComplete: () => void;
+  conversationHistory?: RefinementMessage[];
 }
 
 const SEGMENTATION_OPTIONS = [
@@ -25,7 +26,7 @@ const SEGMENTATION_OPTIONS = [
   { value: 'custom', label: 'Custom', description: 'Define your own segmentation' },
 ];
 
-export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormProps) {
+export function LandscapeForm({ data, onDataChange, onComplete, conversationHistory }: LandscapeFormProps) {
   const [playerInput, setPlayerInput] = useState('');
   const [formData, setFormData] = useState<LandscapeData>(
     data || {
@@ -39,6 +40,59 @@ export function LandscapeForm({ data, onDataChange, onComplete }: LandscapeFormP
 
   const [feedback, setFeedback] = useState<Record<string, FieldFeedback | null>>({});
   const [loadingFeedback, setLoadingFeedback] = useState<string | null>(null);
+  const [loadingSuggest, setLoadingSuggest] = useState<string | null>(null);
+
+  const suggestFromConversation = async (fieldName: keyof LandscapeData, fieldLabel: string) => {
+    if (!conversationHistory || conversationHistory.length === 0) return;
+
+    setLoadingSuggest(fieldName);
+    try {
+      const response = await fetch('/api/refine/suggest-field', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          framework: 'landscape_analysis',
+          field: fieldName,
+          fieldLabel,
+          conversationHistory,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.suggestion) {
+          updateField(fieldName, data.suggestion);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get suggestion:', error);
+    } finally {
+      setLoadingSuggest(null);
+    }
+  };
+
+  const renderSuggestButton = (fieldName: keyof LandscapeData, fieldLabel: string) => {
+    if (!conversationHistory || conversationHistory.length === 0) return null;
+
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => suggestFromConversation(fieldName, fieldLabel)}
+        disabled={loadingSuggest === fieldName}
+        title="Suggest from conversation"
+        className="shrink-0 gap-1"
+      >
+        {loadingSuggest === fieldName ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Wand2 className="h-3 w-3" />
+        )}
+        Suggest
+      </Button>
+    );
+  };
 
   const updateField = (field: keyof LandscapeData, value: string | string[]) => {
     const updated = { ...formData, [field]: value };

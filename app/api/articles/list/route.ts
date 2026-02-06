@@ -14,6 +14,7 @@ export async function GET() {
         status,
         autonomy_level,
         research_data,
+        refinement_data,
         created_at,
         updated_at
       `)

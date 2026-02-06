@@ -58,6 +58,7 @@ export default function Home() {
     topic: string;
     autonomyLevel: number;
     refinementData?: RefinementData;
+    savedResearchData?: Article['research_data'];
   } | null>(null);
 
   // Load articles on mount
@@ -291,11 +292,15 @@ export default function Home() {
   const handleContinueArticle = (articleIdParam: string) => {
     const article = articles.find((a) => a.id === articleIdParam);
     if (article) {
+      // Cast to include refinement_data which is fetched from API
+      const articleWithRefinement = article as ArticleWithCount & { refinement_data?: RefinementData };
       setActiveSession({
         articleId: article.id,
         title: article.title,
         topic: article.topic,
         autonomyLevel: article.autonomy_level,
+        refinementData: articleWithRefinement.refinement_data,
+        savedResearchData: article.research_data,
       });
     }
   };
@@ -330,6 +335,7 @@ export default function Home() {
         topic={activeSession.topic}
         autonomyLevel={activeSession.autonomyLevel}
         refinementData={activeSession.refinementData}
+        savedResearchData={activeSession.savedResearchData}
         onClose={handleCloseSession}
       />
     );

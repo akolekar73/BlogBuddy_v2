@@ -199,6 +199,7 @@ export function RefinementModal({
               data={whyNowData}
               onDataChange={setWhyNowData}
               onComplete={handleFrameworkFormComplete}
+              conversationHistory={socraticMessages}
             />
           );
         }
@@ -209,6 +210,7 @@ export function RefinementModal({
               data={landscapeData}
               onDataChange={setLandscapeData}
               onComplete={handleFrameworkFormComplete}
+              conversationHistory={socraticMessages}
             />
           );
         }
@@ -219,6 +221,7 @@ export function RefinementModal({
               data={problemSolutionData}
               onDataChange={setProblemSolutionData}
               onComplete={handleFrameworkFormComplete}
+              conversationHistory={socraticMessages}
             />
           );
         }

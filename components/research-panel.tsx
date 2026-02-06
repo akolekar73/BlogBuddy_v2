@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { SourceCard } from './source-card';
 import { ChatSidebar } from './chat-sidebar';
-import { Source, ArticleStructure, RefinementData } from '@/lib/types';
+import { Source, ArticleStructure, RefinementData, ResearchData } from '@/lib/types';
 import { ChevronDown } from 'lucide-react';
 
 interface ResearchPanelProps {
@@ -22,6 +22,7 @@ interface ResearchPanelProps {
   topic: string;
   autonomyLevel: number;
   refinementData?: RefinementData;
+  savedResearchData?: ResearchData;
   onClose: () => void;
 }
 
@@ -31,6 +32,7 @@ export function ResearchPanel({
   topic,
   autonomyLevel,
   refinementData,
+  savedResearchData,
   onClose,
 }: ResearchPanelProps) {
   const router = useRouter();
@@ -175,10 +177,20 @@ export function ResearchPanel({
   useEffect(() => {
     loadSources();
 
-    // Run initial search only once
+    // Load saved structure from research data if available
+    if (savedResearchData?.structure) {
+      setStructure(savedResearchData.structure);
+      // If we have a saved structure, show the structure tab
+      setActiveTab('structure');
+    }
+
+    // Run initial search only once (skip if we already have sources from a saved article)
     if (!initialSearchDone.current) {
       initialSearchDone.current = true;
-      handleSearch(topic);
+      // Only run initial search if this is a new research session (no saved structure)
+      if (!savedResearchData?.structure) {
+        handleSearch(topic);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articleId]);
