@@ -65,19 +65,18 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete, conversati
     return (
       <Button
         type="button"
-        variant="secondary"
-        size="sm"
+        variant="ghost"
+        size="icon"
         onClick={() => suggestFromConversation(fieldName, fieldLabel)}
         disabled={loadingSuggest === fieldName}
-        title="Suggest from conversation"
-        className="shrink-0 gap-1"
+        title="Auto-fill from conversation"
+        className="shrink-0"
       >
         {loadingSuggest === fieldName ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Wand2 className="h-3 w-3" />
+          <Wand2 className="h-4 w-4" />
         )}
-        Suggest
       </Button>
     );
   };
@@ -237,7 +236,10 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete, conversati
                   rows={4}
                   className="flex-1"
                 />
-                {renderFeedbackButton('problem', formData.problem.length > 0)}
+                <div className="flex flex-col gap-1">
+                  {renderSuggestButton('problem', 'Problem Description')}
+                  {renderFeedbackButton('problem', formData.problem.length > 0)}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 Be specific about what the problem is and how it manifests.
@@ -258,6 +260,7 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete, conversati
                   onChange={(e) => updateField('who_affected', e.target.value)}
                   className="flex-1"
                 />
+                {renderSuggestButton('who_affected', 'Who is Affected')}
                 {renderFeedbackButton('who_affected', formData.who_affected.length > 0)}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -280,7 +283,10 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete, conversati
                   rows={3}
                   className="flex-1"
                 />
-                {renderFeedbackButton('why_unsolved', formData.why_unsolved.length > 0)}
+                <div className="flex flex-col gap-1">
+                  {renderSuggestButton('why_unsolved', 'Why Unsolved')}
+                  {renderFeedbackButton('why_unsolved', formData.why_unsolved.length > 0)}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 Understanding barriers helps identify what a solution needs to overcome.
@@ -302,7 +308,10 @@ export function ProblemSolutionForm({ data, onDataChange, onComplete, conversati
                   rows={3}
                   className="flex-1"
                 />
-                {renderFeedbackButton('recent_changes', formData.recent_changes.length > 0)}
+                <div className="flex flex-col gap-1">
+                  {renderSuggestButton('recent_changes', 'Recent Changes')}
+                  {renderFeedbackButton('recent_changes', formData.recent_changes.length > 0)}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 This connects to the &quot;why now&quot; angle - what enables a solution today?

@@ -77,19 +77,18 @@ export function LandscapeForm({ data, onDataChange, onComplete, conversationHist
     return (
       <Button
         type="button"
-        variant="secondary"
-        size="sm"
+        variant="ghost"
+        size="icon"
         onClick={() => suggestFromConversation(fieldName, fieldLabel)}
         disabled={loadingSuggest === fieldName}
-        title="Suggest from conversation"
-        className="shrink-0 gap-1"
+        title="Auto-fill from conversation"
+        className="shrink-0"
       >
         {loadingSuggest === fieldName ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Wand2 className="h-3 w-3" />
+          <Wand2 className="h-4 w-4" />
         )}
-        Suggest
       </Button>
     );
   };
@@ -267,6 +266,7 @@ export function LandscapeForm({ data, onDataChange, onComplete, conversationHist
                   onChange={(e) => updateField('market', e.target.value)}
                   className="flex-1"
                 />
+                {renderSuggestButton('market', 'Market/Space')}
                 {renderFeedbackButton('market', formData.market.length > 0)}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -355,7 +355,10 @@ export function LandscapeForm({ data, onDataChange, onComplete, conversationHist
                   rows={3}
                   className="flex-1"
                 />
-                {renderFeedbackButton('contested_aspects', formData.contested_aspects.length > 0)}
+                <div className="flex flex-col gap-1">
+                  {renderSuggestButton('contested_aspects', 'Contested Aspects')}
+                  {renderFeedbackButton('contested_aspects', formData.contested_aspects.length > 0)}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 Identifying controversies makes your analysis more valuable.
@@ -377,7 +380,10 @@ export function LandscapeForm({ data, onDataChange, onComplete, conversationHist
                   rows={3}
                   className="flex-1"
                 />
-                {renderFeedbackButton('value_proposition', formData.value_proposition.length > 0)}
+                <div className="flex flex-col gap-1">
+                  {renderSuggestButton('value_proposition', 'Value to Readers')}
+                  {renderFeedbackButton('value_proposition', formData.value_proposition.length > 0)}
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 Help readers understand what they&apos;ll learn from your analysis.

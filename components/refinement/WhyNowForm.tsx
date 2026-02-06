@@ -181,19 +181,18 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
     return (
       <Button
         type="button"
-        variant="secondary"
-        size="sm"
+        variant="ghost"
+        size="icon"
         onClick={() => suggestFromConversation(fieldName, fieldLabel)}
         disabled={loadingSuggest === fieldName}
-        title="Suggest from conversation"
-        className="shrink-0 gap-1"
+        title="Auto-fill from conversation"
+        className="shrink-0"
       >
         {loadingSuggest === fieldName ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Wand2 className="h-3 w-3" />
+          <Wand2 className="h-4 w-4" />
         )}
-        Suggest
       </Button>
     );
   };
@@ -247,13 +246,10 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
         <div className="space-y-4">
           {/* Technology/Trend Field */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="technology">
-                Technology or Trend Being Analyzed{' '}
-                <span className="text-red-500">*</span>
-              </Label>
-              {renderSuggestButton('technology', 'Technology or Trend')}
-            </div>
+            <Label htmlFor="technology">
+              Technology or Trend Being Analyzed{' '}
+              <span className="text-red-500">*</span>
+            </Label>
             <div className="flex gap-2">
               <Input
                 id="technology"
@@ -262,6 +258,7 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
                 onChange={(e) => updateField('technology', e.target.value)}
                 className="flex-1"
               />
+              {renderSuggestButton('technology', 'Technology or Trend')}
               {renderFeedbackButton('technology', formData.technology.length > 0)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -296,12 +293,9 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
 
           {/* Catalyst Details Field */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="catalyst_details">
-                Elaborate on Catalysts <span className="text-red-500">*</span>
-              </Label>
-              {renderSuggestButton('catalyst_details', 'Catalyst Details')}
-            </div>
+            <Label htmlFor="catalyst_details">
+              Elaborate on Catalysts <span className="text-red-500">*</span>
+            </Label>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="catalyst_details"
@@ -311,10 +305,13 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
                 rows={3}
                 className="flex-1"
               />
-              {renderFeedbackButton(
-                'catalyst_details',
-                formData.catalyst_details.length > 0
-              )}
+              <div className="flex flex-col gap-1">
+                {renderSuggestButton('catalyst_details', 'Catalyst Details')}
+                {renderFeedbackButton(
+                  'catalyst_details',
+                  formData.catalyst_details.length > 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               Provide concrete examples and data points where possible.
@@ -324,10 +321,7 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
 
           {/* Evidence Needed Field */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="evidence_needed">Evidence Needed</Label>
-              {renderSuggestButton('evidence_needed', 'Evidence Needed')}
-            </div>
+            <Label htmlFor="evidence_needed">Evidence Needed</Label>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="evidence_needed"
@@ -337,10 +331,13 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
                 rows={2}
                 className="flex-1"
               />
-              {renderFeedbackButton(
-                'evidence_needed',
-                formData.evidence_needed.length > 0
-              )}
+              <div className="flex flex-col gap-1">
+                {renderSuggestButton('evidence_needed', 'Evidence Needed')}
+                {renderFeedbackButton(
+                  'evidence_needed',
+                  formData.evidence_needed.length > 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               This helps guide what to look for during research.
@@ -350,10 +347,7 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
 
           {/* Past Failures Field */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="past_failures">Why Past Attempts Failed</Label>
-              {renderSuggestButton('past_failures', 'Past Failures')}
-            </div>
+            <Label htmlFor="past_failures">Why Past Attempts Failed</Label>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="past_failures"
@@ -363,10 +357,13 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
                 rows={2}
                 className="flex-1"
               />
-              {renderFeedbackButton(
-                'past_failures',
-                (formData.past_failures || '').length > 0
-              )}
+              <div className="flex flex-col gap-1">
+                {renderSuggestButton('past_failures', 'Past Failures')}
+                {renderFeedbackButton(
+                  'past_failures',
+                  (formData.past_failures || '').length > 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               Understanding past failures strengthens the &quot;why now&quot;
@@ -377,12 +374,9 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
 
           {/* Current Enablers Field */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="current_enablers">
-                What&apos;s Different Now <span className="text-red-500">*</span>
-              </Label>
-              {renderSuggestButton('current_enablers', 'Current Enablers')}
-            </div>
+            <Label htmlFor="current_enablers">
+              What&apos;s Different Now <span className="text-red-500">*</span>
+            </Label>
             <div className="flex gap-2 items-start">
               <Textarea
                 id="current_enablers"
@@ -392,10 +386,13 @@ export function WhyNowForm({ data, onDataChange, onComplete, conversationHistory
                 rows={3}
                 className="flex-1"
               />
-              {renderFeedbackButton(
-                'current_enablers',
-                formData.current_enablers.length > 0
-              )}
+              <div className="flex flex-col gap-1">
+                {renderSuggestButton('current_enablers', 'Current Enablers')}
+                {renderFeedbackButton(
+                  'current_enablers',
+                  formData.current_enablers.length > 0
+                )}
+              </div>
             </div>
             <p className="text-xs text-muted-foreground">
               This is the core of your &quot;why now&quot; thesis.

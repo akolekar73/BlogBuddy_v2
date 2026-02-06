@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Loader2, Sparkles, BookOpen, FileText, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, Sparkles, BookOpen, FileText, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,6 +15,7 @@ import { SourceCard } from './source-card';
 import { ChatSidebar } from './chat-sidebar';
 import { Source, ArticleStructure, RefinementData, ResearchData } from '@/lib/types';
 import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ResearchPanelProps {
   articleId: string;
@@ -268,8 +269,52 @@ export function ResearchPanel({
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat Sidebar */}
-        <div className="w-80 shrink-0 hidden lg:block">
+        {/* Structure Sidebar - shows when structure exists */}
+        {structure && (
+          <div className="w-64 border-r bg-muted/30 flex flex-col shrink-0 hidden md:flex">
+            <div className="p-4 border-b">
+              <h2 className="font-semibold flex items-center gap-2 text-sm">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Article Structure
+              </h2>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-2 space-y-1">
+                {structure.sections.map((section, index) => (
+                  <div
+                    key={index}
+                    className="p-3 rounded-lg hover:bg-muted flex items-start gap-3"
+                  >
+                    <Circle className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {index + 1}. {section.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {section.key_points?.length || 0} key points
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="p-4 border-t bg-background">
+              <Button
+                className="w-full gap-2"
+                onClick={() => router.push(`/article/${articleId}`)}
+              >
+                <ArrowRight className="h-4 w-4" />
+                Start Writing
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Chat Sidebar - hidden when structure exists on larger screens */}
+        <div className={cn(
+          "w-80 shrink-0 hidden",
+          structure ? "xl:block" : "lg:block"
+        )}>
           <ChatSidebar articleId={articleId} savedSourceCount={savedSources.length} />
         </div>
 

@@ -2,23 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, FileText, Loader2, Sparkles, Save, Copy, Check } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, Loader2, Sparkles, Save, Copy, Check, ChevronRight, Circle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Article, Source, ArticleStructure } from '@/lib/types';
 
 interface ArticleWithDetails extends Article {
   sources?: Source[];
+}
+
+interface SectionContent {
+  [key: number]: string;
 }
 
 export default function ArticlePage() {
@@ -30,9 +28,12 @@ export default function ArticlePage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [structure, setStructure] = useState<ArticleStructure | null>(null);
   const [content, setContent] = useState('');
+  const [sectionContent, setSectionContent] = useState<SectionContent>({});
+  const [activeSection, setActiveSection] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showSources, setShowSources] = useState(false);
 
   useEffect(() => {
     if (articleId) {
@@ -50,6 +51,10 @@ export default function ArticlePage() {
         setContent(data.article.content || '');
         if (data.article.research_data?.structure) {
           setStructure(data.article.research_data.structure);
+          // Parse existing content into sections if available
+          if (data.article.content) {
+            parseSectionContent(data.article.content, data.article.research_data.structure);
+          }
         }
       }
     } catch (err) {
@@ -57,6 +62,27 @@ export default function ArticlePage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const parseSectionContent = (content: string, struct: ArticleStructure) => {
+    // Try to parse content by section markers
+    const sections: SectionContent = {};
+    let remaining = content;
+
+    struct.sections?.forEach((section, index) => {
+      const nextSection = struct.sections?.[index + 1];
+      const startMarker = `## ${section.title}`;
+      const endMarker = nextSection ? `## ${nextSection.title}` : null;
+
+      const startIdx = remaining.indexOf(startMarker);
+      if (startIdx !== -1) {
+        const contentStart = startIdx + startMarker.length;
+        const endIdx = endMarker ? remaining.indexOf(endMarker) : remaining.length;
+        sections[index] = remaining.slice(contentStart, endIdx !== -1 ? endIdx : undefined).trim();
+      }
+    });
+
+    setSectionContent(sections);
   };
 
   const loadSources = async () => {
@@ -69,6 +95,42 @@ export default function ArticlePage() {
     } catch (err) {
       console.error('Failed to load sources:', err);
     }
+  };
+
+  const handleSectionContentChange = (sectionIndex: number, text: string) => {
+    setSectionContent(prev => ({
+      ...prev,
+      [sectionIndex]: text
+    }));
+    // Rebuild full content
+    rebuildContent({ ...sectionContent, [sectionIndex]: text });
+  };
+
+  const rebuildContent = (sections: SectionContent) => {
+    if (!structure?.sections) return;
+
+    let fullContent = '';
+
+    // Add suggested angle as intro if available
+    if (structure.suggested_angle) {
+      fullContent += `# ${article?.title || 'Article'}\n\n`;
+      fullContent += `*${structure.suggested_angle}*\n\n`;
+    }
+
+    structure.sections.forEach((section, index) => {
+      fullContent += `## ${section.title}\n\n`;
+      fullContent += (sections[index] || '') + '\n\n';
+    });
+
+    // Add key takeaways if available
+    if (structure.key_takeaways && structure.key_takeaways.length > 0) {
+      fullContent += `## Key Takeaways\n\n`;
+      structure.key_takeaways.forEach(takeaway => {
+        fullContent += `- ${takeaway}\n`;
+      });
+    }
+
+    setContent(fullContent.trim());
   };
 
   const handleSave = async () => {
@@ -92,6 +154,22 @@ export default function ArticlePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const getSectionStatus = (index: number): 'empty' | 'in-progress' | 'complete' => {
+    const text = sectionContent[index] || '';
+    if (text.length === 0) return 'empty';
+    if (text.length < 100) return 'in-progress';
+    return 'complete';
+  };
+
+  const getRelevantSources = (sectionIndex: number): Source[] => {
+    if (!structure?.sections?.[sectionIndex]) return sources;
+    const section = structure.sections[sectionIndex];
+    if (section.suggested_sources && section.suggested_sources.length > 0) {
+      return sources.filter(s => section.suggested_sources.includes(s.id));
+    }
+    return sources;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -111,19 +189,22 @@ export default function ArticlePage() {
     );
   }
 
+  const currentSection = structure?.sections?.[activeSection];
+  const relevantSources = getRelevantSources(activeSection);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
+      <div className="border-b bg-card shrink-0">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-xl font-semibold">{article.title}</h1>
-                <p className="text-sm text-muted-foreground">{article.topic}</p>
+                <h1 className="text-lg font-semibold truncate max-w-md">{article.title}</h1>
+                <p className="text-sm text-muted-foreground truncate max-w-md">{article.topic}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -146,152 +227,224 @@ export default function ArticlePage() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Writing Area */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Write Your Article
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Start writing your article here. Use the structure and sources on the right for guidance..."
-                  className="min-h-[500px] font-mono text-sm"
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Structure Outline */}
+        <div className="w-72 border-r bg-muted/30 flex flex-col shrink-0">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Article Structure
+            </h2>
+            {structure?.suggested_angle && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                {structure.suggested_angle}
+              </p>
+            )}
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-2">
+              {structure?.sections ? (
+                <div className="space-y-1">
+                  {structure.sections.map((section, index) => {
+                    const status = getSectionStatus(index);
+                    const isActive = activeSection === index;
+
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setActiveSection(index)}
+                        className={cn(
+                          "w-full text-left p-3 rounded-lg transition-all",
+                          "flex items-start gap-3 group",
+                          isActive
+                            ? "bg-primary/10 border border-primary/20"
+                            : "hover:bg-muted"
+                        )}
+                      >
+                        <div className="mt-0.5 shrink-0">
+                          {status === 'complete' ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : status === 'in-progress' ? (
+                            <div className="h-5 w-5 rounded-full border-2 border-primary bg-primary/20" />
+                          ) : (
+                            <Circle className={cn(
+                              "h-5 w-5",
+                              isActive ? "text-primary" : "text-muted-foreground"
+                            )} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={cn(
+                            "text-sm font-medium truncate",
+                            isActive ? "text-primary" : "text-foreground"
+                          )}>
+                            {index + 1}. {section.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {section.key_points?.length || 0} key points
+                          </p>
+                        </div>
+                        <ChevronRight className={cn(
+                          "h-4 w-4 shrink-0 transition-transform",
+                          isActive ? "text-primary rotate-90" : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                        )} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No structure yet</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          {/* Progress indicator */}
+          {structure?.sections && (
+            <div className="p-4 border-t bg-background">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="font-medium">
+                  {Object.values(sectionContent).filter(s => s && s.length >= 100).length} / {structure.sections.length}
+                </span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{
+                    width: `${(Object.values(sectionContent).filter(s => s && s.length >= 100).length / structure.sections.length) * 100}%`
+                  }}
                 />
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </div>
+          )}
+        </div>
 
-          {/* Sidebar - Structure & Sources */}
-          <div className="space-y-4">
-            <Tabs defaultValue="structure">
-              <TabsList className="w-full">
-                <TabsTrigger value="structure" className="flex-1 gap-1">
-                  <Sparkles className="h-4 w-4" />
-                  Structure
-                </TabsTrigger>
-                <TabsTrigger value="sources" className="flex-1 gap-1">
-                  <BookOpen className="h-4 w-4" />
-                  Sources
-                </TabsTrigger>
-              </TabsList>
+        {/* Center - Writing Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {currentSection ? (
+            <>
+              {/* Section Header */}
+              <div className="p-4 border-b bg-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg">
+                      {activeSection + 1}. {currentSection.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Write content for this section using the key points as guidance
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSources(!showSources)}
+                    className="gap-2"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {showSources ? 'Hide' : 'Show'} Sources ({relevantSources.length})
+                  </Button>
+                </div>
 
-              <TabsContent value="structure" className="mt-4">
-                <ScrollArea className="h-[600px]">
-                  {structure ? (
-                    <div className="space-y-4 pr-4">
-                      {structure.suggested_angle && (
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Suggested Angle</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm text-muted-foreground">
-                              {structure.suggested_angle}
-                            </p>
-                          </CardContent>
-                        </Card>
+                {/* Key Points */}
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Key points to cover:</p>
+                  <ul className="space-y-1">
+                    {currentSection.key_points?.map((point, i) => (
+                      <li key={i} className="text-sm flex items-start gap-2">
+                        <span className="text-primary mt-1">•</span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Writing Area */}
+              <div className="flex-1 p-4 overflow-hidden flex gap-4">
+                <div className={cn("flex-1 flex flex-col", showSources && "w-1/2")}>
+                  <Textarea
+                    value={sectionContent[activeSection] || ''}
+                    onChange={(e) => handleSectionContentChange(activeSection, e.target.value)}
+                    placeholder={`Write about "${currentSection.title}"...\n\nConsider addressing:\n${currentSection.key_points?.map(p => `• ${p}`).join('\n')}`}
+                    className="flex-1 resize-none font-mono text-sm min-h-[300px]"
+                  />
+                  <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                    <span>{(sectionContent[activeSection] || '').length} characters</span>
+                    <div className="flex gap-2">
+                      {activeSection > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setActiveSection(activeSection - 1)}
+                        >
+                          ← Previous
+                        </Button>
                       )}
+                      {structure?.sections && activeSection < structure.sections.length - 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setActiveSection(activeSection + 1)}
+                        >
+                          Next →
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-                      {structure.sections?.map((section, index) => (
-                        <Collapsible key={index} defaultOpen={index === 0}>
-                          <Card>
-                            <CollapsibleTrigger className="w-full">
-                              <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                  <CardTitle className="text-sm text-left">
-                                    {index + 1}. {section.title}
-                                  </CardTitle>
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                              </CardHeader>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <CardContent className="pt-0">
-                                <ul className="text-sm text-muted-foreground space-y-1">
-                                  {section.key_points?.map((point, i) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="text-primary">•</span>
-                                      <span>{point}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </CardContent>
-                            </CollapsibleContent>
+                {/* Sources Panel (toggleable) */}
+                {showSources && (
+                  <div className="w-1/2 border-l pl-4">
+                    <ScrollArea className="h-full">
+                      <div className="space-y-3 pr-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Reference sources for this section:
+                        </p>
+                        {relevantSources.map((source) => (
+                          <Card key={source.id} className="overflow-hidden">
+                            <CardContent className="p-3">
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-sm text-primary hover:underline flex items-center gap-1"
+                              >
+                                {source.title}
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
+                                {source.summary}
+                              </p>
+                              <Badge variant="outline" className="mt-2 text-xs">
+                                {source.source_type}
+                              </Badge>
+                            </CardContent>
                           </Card>
-                        </Collapsible>
-                      ))}
-
-                      {structure.key_takeaways && structure.key_takeaways.length > 0 && (
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Key Takeaways</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <ul className="text-sm text-muted-foreground space-y-1">
-                              {structure.key_takeaways.map((takeaway, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="text-primary">•</span>
-                                  <span>{takeaway}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No structure generated yet</p>
-                      <p className="text-sm">Generate a structure from your saved sources</p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-
-              <TabsContent value="sources" className="mt-4">
-                <ScrollArea className="h-[600px]">
-                  {sources.length > 0 ? (
-                    <div className="space-y-3 pr-4">
-                      {sources.map((source) => (
-                        <Card key={source.id} className="overflow-hidden">
-                          <CardContent className="p-3">
-                            <a
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-medium text-sm text-primary hover:underline flex items-center gap-1"
-                            >
-                              {source.title}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
-                              {source.summary}
-                            </p>
-                            <Badge variant="outline" className="mt-2 text-xs">
-                              {source.source_type}
-                            </Badge>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No saved sources</p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </TabsContent>
-            </Tabs>
-          </div>
+                        ))}
+                        {relevantSources.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No sources linked to this section
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">Select a section to start writing</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
